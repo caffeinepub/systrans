@@ -769,7 +769,7 @@ export default function App() {
                     {
                       Icon: Mail,
                       label: "Email",
-                      value: "support@systrans.com",
+                      value: "support@systrans.in",
                     },
                     {
                       Icon: Globe,
