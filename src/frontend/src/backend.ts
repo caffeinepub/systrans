@@ -130,6 +130,8 @@ export interface backendInterface {
     getROILeads(): Promise<Array<ROILead>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
+    becomeFirstAdmin(): Promise<boolean>;
+    hasAdminBeenAssigned(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     submitContact(name: string, email: string, message: string): Promise<bigint>;
     submitROILead(name: string, email: string, phone: string, monthlyRevenue: number, staffHours: number, lostLeads: number, hourlyWage: number, avgOrderValue: number, totalMonthlyGain: number): Promise<bigint>;
@@ -302,6 +304,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.isCallerAdmin();
+            return result;
+        }
+    }
+    async becomeFirstAdmin(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.becomeFirstAdmin();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.becomeFirstAdmin();
+            return result;
+        }
+    }
+    async hasAdminBeenAssigned(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.hasAdminBeenAssigned();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.hasAdminBeenAssigned();
             return result;
         }
     }

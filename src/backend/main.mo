@@ -170,6 +170,23 @@ actor {
     AccessControl.assignRole(accessControlState, caller, user, #admin);
   };
 
+
+  // Self-register as admin -- only works when no admin has been assigned yet
+  public shared ({ caller }) func becomeFirstAdmin() : async Bool {
+    if (accessControlState.adminAssigned) {
+      return false;
+    };
+    if (caller.isAnonymous()) {
+      Runtime.trap("Must be logged in");
+    };
+    accessControlState.userRoles.add(caller, #admin);
+    accessControlState.adminAssigned := true;
+    true
+  };
+
+  public query func hasAdminBeenAssigned() : async Bool {
+    accessControlState.adminAssigned
+  };
   public query ({ caller }) func getContactSubmissionById(id : Nat) : async ?ContactSubmission {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can view contact submissions");

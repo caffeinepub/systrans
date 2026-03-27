@@ -47,6 +47,8 @@ export interface backendInterface {
     getROILeads(): Promise<Array<ROILead>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
+    becomeFirstAdmin(): Promise<boolean>;
+    hasAdminBeenAssigned(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     submitContact(name: string, email: string, message: string): Promise<bigint>;
     submitROILead(name: string, email: string, phone: string, monthlyRevenue: number, staffHours: number, lostLeads: number, hourlyWage: number, avgOrderValue: number, totalMonthlyGain: number): Promise<bigint>;

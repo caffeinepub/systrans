@@ -11,7 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActor } from "@/hooks/useActor";
 import { useInternetIdentity } from "@/hooks/useInternetIdentity";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Inbox,
   Loader2,
@@ -35,7 +35,35 @@ export default function AdminPanel() {
   const { identity, login, clear, isLoggingIn, isInitializing } =
     useInternetIdentity();
   const { actor, isFetching } = useActor();
+  const queryClient = useQueryClient();
   const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
+
+  // Check if user is admin
+  const { data: isAdmin, isLoading: adminCheckLoading } = useQuery<boolean>({
+    queryKey: ["isAdmin"],
+    queryFn: async () => {
+      if (!actor) return false;
+      try {
+        return await actor.isCallerAdmin();
+      } catch {
+        return false;
+      }
+    },
+    enabled: !!actor && !isFetching && isLoggedIn,
+  });
+
+  // Try to become first admin
+  const { mutate: claimAdmin, isPending: claimingAdmin } = useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Not connected");
+      return actor.becomeFirstAdmin();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["isAdmin"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["roiLeads"] });
+    },
+  });
 
   const {
     data: contacts,
@@ -47,7 +75,7 @@ export default function AdminPanel() {
       if (!actor) return [];
       return actor.getContacts();
     },
-    enabled: !!actor && !isFetching && isLoggedIn,
+    enabled: !!actor && !isFetching && isLoggedIn && !!isAdmin,
   });
 
   const {
@@ -60,7 +88,7 @@ export default function AdminPanel() {
       if (!actor) return [];
       return actor.getROILeads();
     },
-    enabled: !!actor && !isFetching && isLoggedIn,
+    enabled: !!actor && !isFetching && isLoggedIn && !!isAdmin,
   });
 
   const currentYear = new Date().getFullYear();
@@ -150,6 +178,59 @@ export default function AdminPanel() {
                 Connecting...
               </p>
             )}
+          </div>
+        ) : adminCheckLoading ? (
+          // CHECKING ADMIN STATUS
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+            <Loader2
+              className="w-8 h-8 animate-spin"
+              style={{ color: "oklch(0.52 0.18 264)" }}
+            />
+            <p className="text-muted-foreground">Checking access...</p>
+          </div>
+        ) : !isAdmin ? (
+          // NOT ADMIN -- offer to claim if first admin slot is open
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-2"
+              style={{ background: "oklch(0.95 0.04 264)" }}
+            >
+              <ShieldCheck
+                className="w-8 h-8"
+                style={{ color: "oklch(0.52 0.18 264)" }}
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">
+              Claim Admin Access
+            </h1>
+            <p className="text-muted-foreground text-center max-w-sm">
+              No admin has been assigned yet. Click below to become the admin
+              and access submissions.
+            </p>
+            <Button
+              onClick={() => claimAdmin()}
+              disabled={claimingAdmin}
+              className="bg-primary text-white hover:bg-primary/90 font-semibold px-8 h-11 gap-2"
+            >
+              {claimingAdmin ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Setting up
+                  admin...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4" /> Become Admin
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clear}
+              className="gap-2"
+            >
+              <LogOut className="w-4 h-4" /> Logout
+            </Button>
           </div>
         ) : (
           // TABS: CONTACT SUBMISSIONS + ROI LEADS

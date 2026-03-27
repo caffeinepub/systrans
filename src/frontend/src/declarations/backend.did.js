@@ -56,6 +56,8 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'becomeFirstAdmin' : IDL.Func([], [IDL.Bool], []),
+  'hasAdminBeenAssigned' : IDL.Func([], [IDL.Bool], ['query']),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'submitContact' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
   'submitROILead' : IDL.Func(

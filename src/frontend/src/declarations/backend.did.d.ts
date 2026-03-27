@@ -47,6 +47,8 @@ export interface _SERVICE {
   'getROILeads' : ActorMethod<[], Array<ROILead>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'becomeFirstAdmin' : ActorMethod<[], boolean>,
+  'hasAdminBeenAssigned' : ActorMethod<[], boolean>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'submitContact' : ActorMethod<[string, string, string], bigint>,
   'submitROILead' : ActorMethod<
