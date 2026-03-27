@@ -6,20 +6,6 @@ import { getSecretParameter } from "../utils/urlParams";
 import { useInternetIdentity } from "./useInternetIdentity";
 
 const ACTOR_QUERY_KEY = "actor";
-const ACTOR_TIMEOUT_MS = 15_000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(
-        () => reject(new Error("Backend connection timed out. Please retry.")),
-        ms,
-      ),
-    ),
-  ]);
-}
-
 export function useActor() {
   const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
@@ -29,24 +15,24 @@ export function useActor() {
       const isAuthenticated = !!identity;
 
       if (!isAuthenticated) {
-        return await withTimeout(createActorWithConfig(), ACTOR_TIMEOUT_MS);
+        // Return anonymous actor if not authenticated
+        return await createActorWithConfig();
       }
 
-      const actorOptions = { agentOptions: { identity } };
-      const actor = await withTimeout(
-        createActorWithConfig(actorOptions),
-        ACTOR_TIMEOUT_MS,
-      );
+      const actorOptions = {
+        agentOptions: {
+          identity,
+        },
+      };
+
+      const actor = await createActorWithConfig(actorOptions);
       const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      await withTimeout(
-        actor._initializeAccessControlWithSecret(adminToken),
-        ACTOR_TIMEOUT_MS,
-      );
+      await actor._initializeAccessControlWithSecret(adminToken);
       return actor;
     },
-    retry: 2,
-    retryDelay: 2000,
+    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
+    // This will cause the actor to be recreated when the identity changes
     enabled: true,
   });
 
@@ -54,10 +40,14 @@ export function useActor() {
   useEffect(() => {
     if (actorQuery.data) {
       queryClient.invalidateQueries({
-        predicate: (query) => !query.queryKey.includes(ACTOR_QUERY_KEY),
+        predicate: (query) => {
+          return !query.queryKey.includes(ACTOR_QUERY_KEY);
+        },
       });
       queryClient.refetchQueries({
-        predicate: (query) => !query.queryKey.includes(ACTOR_QUERY_KEY),
+        predicate: (query) => {
+          return !query.queryKey.includes(ACTOR_QUERY_KEY);
+        },
       });
     }
   }, [actorQuery.data, queryClient]);
@@ -65,7 +55,5 @@ export function useActor() {
   return {
     actor: actorQuery.data || null,
     isFetching: actorQuery.isFetching,
-    error: actorQuery.error,
-    refetch: actorQuery.refetch,
   };
 }
