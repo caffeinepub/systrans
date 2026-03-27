@@ -121,17 +121,16 @@ export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addAdmin(user: Principal): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    becomeFirstAdmin(): Promise<void>;
     deleteContactSubmission(id: bigint): Promise<boolean>;
-    getAllContactSubmissions(): Promise<Array<ContactSubmission>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getContactSubmissionById(id: bigint): Promise<ContactSubmission | null>;
     getContacts(): Promise<Array<ContactSubmission>>;
     getROILeads(): Promise<Array<ROILead>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
-    isCallerAdmin(): Promise<boolean>;
-    becomeFirstAdmin(): Promise<boolean>;
     hasAdminBeenAssigned(): Promise<boolean>;
+    isCallerAdmin(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     submitContact(name: string, email: string, message: string): Promise<bigint>;
     submitROILead(name: string, email: string, phone: string, monthlyRevenue: number, staffHours: number, lostLeads: number, hourlyWage: number, avgOrderValue: number, totalMonthlyGain: number): Promise<bigint>;
@@ -181,6 +180,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async becomeFirstAdmin(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.becomeFirstAdmin();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.becomeFirstAdmin();
+            return result;
+        }
+    }
     async deleteContactSubmission(arg0: bigint): Promise<boolean> {
         if (this.processError) {
             try {
@@ -192,20 +205,6 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteContactSubmission(arg0);
-            return result;
-        }
-    }
-    async getAllContactSubmissions(): Promise<Array<ContactSubmission>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getAllContactSubmissions();
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getAllContactSubmissions();
             return result;
         }
     }
@@ -293,34 +292,6 @@ export class Backend implements backendInterface {
             return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
         }
     }
-    async isCallerAdmin(): Promise<boolean> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.isCallerAdmin();
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.isCallerAdmin();
-            return result;
-        }
-    }
-    async becomeFirstAdmin(): Promise<boolean> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.becomeFirstAdmin();
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.becomeFirstAdmin();
-            return result;
-        }
-    }
     async hasAdminBeenAssigned(): Promise<boolean> {
         if (this.processError) {
             try {
@@ -332,6 +303,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.hasAdminBeenAssigned();
+            return result;
+        }
+    }
+    async isCallerAdmin(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.isCallerAdmin();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.isCallerAdmin();
             return result;
         }
     }

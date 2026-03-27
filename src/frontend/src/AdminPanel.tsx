@@ -13,6 +13,7 @@ import { useActor } from "@/hooks/useActor";
 import { useInternetIdentity } from "@/hooks/useInternetIdentity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Cpu,
   Inbox,
   Loader2,
   LogOut,
@@ -20,6 +21,7 @@ import {
   ShieldCheck,
   TrendingUp,
 } from "lucide-react";
+import { useState } from "react";
 import type { ContactSubmission, ROILead } from "./backend.d";
 
 function formatTimestamp(ts: bigint): string {
@@ -37,6 +39,7 @@ export default function AdminPanel() {
   const { actor, isFetching } = useActor();
   const queryClient = useQueryClient();
   const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   // Check if user is admin
   const { data: isAdmin, isLoading: adminCheckLoading } = useQuery<boolean>({
@@ -56,12 +59,26 @@ export default function AdminPanel() {
   const { mutate: claimAdmin, isPending: claimingAdmin } = useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error("Not connected");
-      return actor.becomeFirstAdmin();
+      await actor.becomeFirstAdmin();
     },
     onSuccess: () => {
+      setClaimError(null);
       queryClient.invalidateQueries({ queryKey: ["isAdmin"] });
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       queryClient.invalidateQueries({ queryKey: ["roiLeads"] });
+    },
+    onError: (error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (
+        msg.toLowerCase().includes("already") ||
+        msg.toLowerCase().includes("admin")
+      ) {
+        setClaimError(
+          "An admin has already been claimed. If this is your account, please log out and log in again.",
+        );
+      } else {
+        setClaimError(msg || "Failed to claim admin access. Please try again.");
+      }
     },
   });
 
@@ -100,11 +117,12 @@ export default function AdminPanel() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-2">
-              <img
-                src="/assets/generated/systrans-symbol-only-transparent.dim_200x200.png"
-                alt="SysTrans Symbol"
-                className="h-10 w-auto object-contain"
-              />
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "oklch(0.52 0.18 264)" }}
+              >
+                <Cpu className="w-5 h-5 text-white" />
+              </div>
               <span
                 className="font-bold text-lg"
                 style={{ color: "oklch(0.52 0.18 264)" }}
@@ -208,9 +226,13 @@ export default function AdminPanel() {
               and access submissions.
             </p>
             <Button
-              onClick={() => claimAdmin()}
+              onClick={() => {
+                setClaimError(null);
+                claimAdmin();
+              }}
               disabled={claimingAdmin}
               className="bg-primary text-white hover:bg-primary/90 font-semibold px-8 h-11 gap-2"
+              data-ocid="admin.primary_button"
             >
               {claimingAdmin ? (
                 <>
@@ -223,6 +245,14 @@ export default function AdminPanel() {
                 </>
               )}
             </Button>
+            {claimError && (
+              <div
+                className="bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-center max-w-sm"
+                data-ocid="admin.error_state"
+              >
+                <p className="text-red-600 text-sm">{claimError}</p>
+              </div>
+            )}
             <Button
               variant="outline"
               size="sm"

@@ -48,12 +48,12 @@ actor {
   var nextContactId = 0;
   var nextRoiLeadId = 0;
 
+  // User profiles
+  let userProfiles = Map.empty<Principal, UserProfile>();
+
   // Include prefabricated authorization system
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
-
-  // User profiles
-  let userProfiles = Map.empty<Principal, UserProfile>();
 
   // User profile management
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
@@ -135,16 +135,7 @@ actor {
       Runtime.trap("Unauthorized: Only admins can view contact submissions");
     };
 
-    let contactIter = contactIds.values();
-    let resultIter = contactIter.map(
-      func(id) {
-        switch (contactSubmissions.get(id)) {
-          case (?contact) { contact };
-          case (null) { Runtime.trap("Contact submission not found") };
-        };
-      }
-    );
-    resultIter.toArray();
+    contactIds.values().map(func(id) { contactSubmissions.get(id).unwrap() }).toArray();
   };
 
   // Get all ROI leads - admin only
@@ -170,23 +161,33 @@ actor {
     AccessControl.assignRole(accessControlState, caller, user, #admin);
   };
 
-
   // Self-register as admin -- only works when no admin has been assigned yet
-  public shared ({ caller }) func becomeFirstAdmin() : async Bool {
+  public shared ({ caller }) func becomeFirstAdmin() : async () {
     if (accessControlState.adminAssigned) {
-      return false;
+      Runtime.trap("Admin already assigned. Only one admin can exist.");
     };
     if (caller.isAnonymous()) {
       Runtime.trap("Must be logged in");
     };
+    switch (userProfiles.get(caller)) {
+      case (null) {
+        userProfiles.add(
+          caller,
+          {
+            name = "";
+          },
+        );
+      };
+      case (_) {};
+    };
     accessControlState.userRoles.add(caller, #admin);
     accessControlState.adminAssigned := true;
-    true
   };
 
   public query func hasAdminBeenAssigned() : async Bool {
     accessControlState.adminAssigned
   };
+
   public query ({ caller }) func getContactSubmissionById(id : Nat) : async ?ContactSubmission {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can view contact submissions");
@@ -208,12 +209,5 @@ actor {
     contactIds.clear();
     contactIds.addAll(newContactIds.values());
     true;
-  };
-
-  // Warning for legacy canisters attempting legacy admin migration
-  public shared ({ caller }) func getAllContactSubmissions() : async [ContactSubmission] {
-    Runtime.trap(
-      "This is a legacy canister and you are trying to call a deprecated function. Please use `addAdmin` to become the first admin. Once you are an admin, you can use the `getContacts` function. Afterwards, `getAllContactSubmissions` can be deleted.",
-    );
   };
 };

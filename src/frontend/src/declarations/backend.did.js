@@ -13,6 +13,7 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 export const ContactSubmission = IDL.Record({
   'id' : IDL.Nat,
   'name' : IDL.Text,
@@ -20,7 +21,6 @@ export const ContactSubmission = IDL.Record({
   'message' : IDL.Text,
   'timestamp' : IDL.Int,
 });
-export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 export const ROILead = IDL.Record({
   'id' : IDL.Nat,
   'name' : IDL.Text,
@@ -39,8 +39,8 @@ export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addAdmin' : IDL.Func([IDL.Principal], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'becomeFirstAdmin' : IDL.Func([], [], []),
   'deleteContactSubmission' : IDL.Func([IDL.Nat], [IDL.Bool], []),
-  'getAllContactSubmissions' : IDL.Func([], [IDL.Vec(ContactSubmission)], []),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getContactSubmissionById' : IDL.Func(
@@ -55,9 +55,8 @@ export const idlService = IDL.Service({
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
-  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-  'becomeFirstAdmin' : IDL.Func([], [IDL.Bool], []),
   'hasAdminBeenAssigned' : IDL.Func([], [IDL.Bool], ['query']),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'submitContact' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
   'submitROILead' : IDL.Func(
@@ -85,6 +84,7 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
+  const UserProfile = IDL.Record({ 'name' : IDL.Text });
   const ContactSubmission = IDL.Record({
     'id' : IDL.Nat,
     'name' : IDL.Text,
@@ -92,7 +92,6 @@ export const idlFactory = ({ IDL }) => {
     'message' : IDL.Text,
     'timestamp' : IDL.Int,
   });
-  const UserProfile = IDL.Record({ 'name' : IDL.Text });
   const ROILead = IDL.Record({
     'id' : IDL.Nat,
     'name' : IDL.Text,
@@ -111,8 +110,8 @@ export const idlFactory = ({ IDL }) => {
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addAdmin' : IDL.Func([IDL.Principal], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'becomeFirstAdmin' : IDL.Func([], [], []),
     'deleteContactSubmission' : IDL.Func([IDL.Nat], [IDL.Bool], []),
-    'getAllContactSubmissions' : IDL.Func([], [IDL.Vec(ContactSubmission)], []),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getContactSubmissionById' : IDL.Func(
@@ -127,6 +126,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
+    'hasAdminBeenAssigned' : IDL.Func([], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'submitContact' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),

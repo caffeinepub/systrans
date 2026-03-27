@@ -17,7 +17,9 @@ declare global {
 
 const queryClient = new QueryClient();
 
-const isAdmin = window.location.pathname.startsWith("/admin");
+const isAdmin =
+  window.location.pathname === "/admin" ||
+  window.location.pathname === "/admin/";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
