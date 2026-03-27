@@ -6,6 +6,23 @@ import { getSecretParameter } from "../utils/urlParams";
 import { useInternetIdentity } from "./useInternetIdentity";
 
 const ACTOR_QUERY_KEY = "actor";
+const ACTOR_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error("Backend connection timed out. Please refresh the page."),
+          ),
+        ms,
+      ),
+    ),
+  ]);
+}
+
 export function useActor() {
   const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
@@ -15,8 +32,7 @@ export function useActor() {
       const isAuthenticated = !!identity;
 
       if (!isAuthenticated) {
-        // Return anonymous actor if not authenticated
-        return await createActorWithConfig();
+        return await withTimeout(createActorWithConfig(), ACTOR_TIMEOUT_MS);
       }
 
       const actorOptions = {
@@ -25,18 +41,22 @@ export function useActor() {
         },
       };
 
-      const actor = await createActorWithConfig(actorOptions);
+      const actor = await withTimeout(
+        createActorWithConfig(actorOptions),
+        ACTOR_TIMEOUT_MS,
+      );
       const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      await actor._initializeAccessControlWithSecret(adminToken);
+      await withTimeout(
+        actor._initializeAccessControlWithSecret(adminToken),
+        ACTOR_TIMEOUT_MS,
+      );
       return actor;
     },
-    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
-    // This will cause the actor to be recreated when the identity changes
     enabled: true,
+    retry: 1,
   });
 
-  // When the actor changes, invalidate dependent queries
   useEffect(() => {
     if (actorQuery.data) {
       queryClient.invalidateQueries({
@@ -55,5 +75,6 @@ export function useActor() {
   return {
     actor: actorQuery.data || null,
     isFetching: actorQuery.isFetching,
+    error: actorQuery.error,
   };
 }
