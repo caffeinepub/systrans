@@ -1,13 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
   Table,
   TableBody,
   TableCell,
@@ -21,13 +14,10 @@ import { useInternetIdentity } from "@/hooks/useInternetIdentity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Cpu,
-  Download,
-  Eye,
   Inbox,
   Loader2,
   LogOut,
   Mail,
-  Send,
   ShieldCheck,
   TrendingUp,
 } from "lucide-react";
@@ -43,69 +33,6 @@ function formatINR(value: number): string {
   return value.toLocaleString("en-IN");
 }
 
-function downloadCSV(leads: ROILead[]) {
-  const headers = [
-    "#",
-    "Name",
-    "Email",
-    "Phone",
-    "Monthly Revenue (₹)",
-    "Staff Hours (hrs)",
-    "Hourly Wage (₹)",
-    "Lost Leads",
-    "Avg Order Value (₹)",
-    "Total Monthly Gain (₹/mo)",
-    "Date & Time",
-  ];
-  const rows = leads.map((lead, i) => [
-    i + 1,
-    lead.name,
-    lead.email,
-    lead.phone,
-    lead.monthlyRevenue,
-    lead.staffHours,
-    lead.hourlyWage,
-    lead.lostLeads,
-    lead.avgOrderValue,
-    lead.totalMonthlyGain,
-    formatTimestamp(lead.timestamp),
-  ]);
-  const csv = [headers, ...rows]
-    .map((row) =>
-      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
-    )
-    .join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "roi-leads.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function buildMailtoBody(leads: ROILead[]): string {
-  const lines = [
-    "SysTrans ROI Leads Report",
-    "=========================\n",
-    ...leads.map(
-      (lead, i) =>
-        `Lead #${i + 1}\n` +
-        `Name: ${lead.name}\n` +
-        `Email: ${lead.email}\n` +
-        `Phone: ${lead.phone}\n` +
-        `Monthly Revenue: ₹${formatINR(lead.monthlyRevenue)}\n` +
-        `Staff Hours: ${lead.staffHours} hrs\n` +
-        `Hourly Wage: ₹${formatINR(lead.hourlyWage)}\n` +
-        `Lost Leads: ${lead.lostLeads}\n` +
-        `Avg Order Value: ₹${formatINR(lead.avgOrderValue)}\n` +
-        `Total Monthly Gain: ₹${formatINR(lead.totalMonthlyGain)}/mo\n` +
-        `Date: ${formatTimestamp(lead.timestamp)}\n`,
-    ),
-  ];
-  return lines.join("\n");
-}
-
 export default function AdminPanel() {
   const { identity, login, clear, isLoggingIn, isInitializing } =
     useInternetIdentity();
@@ -114,11 +41,6 @@ export default function AdminPanel() {
   const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
   const [claimError, setClaimError] = useState<string | null>(null);
   const isConnecting = isLoggedIn && (isFetching || !actor);
-
-  // ROI Data modal state
-  const [roiModalOpen, setRoiModalOpen] = useState(false);
-  const [showMailInput, setShowMailInput] = useState(false);
-  const [mailAddress, setMailAddress] = useState("");
 
   // Check if user is admin
   const { data: isAdmin, isLoading: adminCheckLoading } = useQuery<boolean>({
@@ -186,13 +108,6 @@ export default function AdminPanel() {
     },
     enabled: !!actor && !isFetching && isLoggedIn && !!isAdmin,
   });
-
-  const handleSendMail = () => {
-    if (!mailAddress || !roiLeads) return;
-    const subject = encodeURIComponent("SysTrans ROI Leads Report");
-    const body = encodeURIComponent(buildMailtoBody(roiLeads));
-    window.location.href = `mailto:${mailAddress}?subject=${subject}&body=${body}`;
-  };
 
   const currentYear = new Date().getFullYear();
 
@@ -505,30 +420,6 @@ export default function AdminPanel() {
 
             {/* ROI LEADS TAB */}
             <TabsContent value="roi-leads" className="space-y-4">
-              {/* Tab header with View Data button */}
-              {roiLeads && roiLeads.length > 0 && (
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    {roiLeads.length} lead{roiLeads.length !== 1 ? "s" : ""}{" "}
-                    collected
-                  </p>
-                  <Button
-                    size="sm"
-                    className="gap-2 text-white font-semibold shadow-sm"
-                    style={{ background: "oklch(0.52 0.18 264)" }}
-                    onClick={() => {
-                      setShowMailInput(false);
-                      setMailAddress("");
-                      setRoiModalOpen(true);
-                    }}
-                    data-ocid="admin.open_modal_button"
-                  >
-                    <Eye className="w-4 h-4" />
-                    View Data
-                  </Button>
-                </div>
-              )}
-
               {roiLoading ? (
                 <div
                   className="flex items-center justify-center py-24 gap-3 text-muted-foreground"
@@ -645,176 +536,6 @@ export default function AdminPanel() {
           </Tabs>
         )}
       </main>
-
-      {/* ROI DATA FULL VIEW MODAL */}
-      <Dialog open={roiModalOpen} onOpenChange={setRoiModalOpen}>
-        <DialogContent className="max-w-6xl w-full max-h-[90vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <TrendingUp
-                    className="w-5 h-5"
-                    style={{ color: "oklch(0.52 0.18 264)" }}
-                  />
-                  ROI Leads — Full Report
-                </DialogTitle>
-                <p className="text-muted-foreground text-sm mt-1">
-                  {roiLeads?.length ?? 0} total leads
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => roiLeads && downloadCSV(roiLeads)}
-                  data-ocid="admin.secondary_button"
-                >
-                  <Download className="w-4 h-4" />
-                  Download CSV
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-2 text-white"
-                  style={{ background: "oklch(0.52 0.18 264)" }}
-                  onClick={() => setShowMailInput((prev) => !prev)}
-                  data-ocid="admin.primary_button"
-                >
-                  <Send className="w-4 h-4" />
-                  Send Mail
-                </Button>
-              </div>
-            </div>
-
-            {/* Send Mail inline input */}
-            {showMailInput && (
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
-                <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <Input
-                  type="email"
-                  placeholder="Enter recipient email address"
-                  value={mailAddress}
-                  onChange={(e) => setMailAddress(e.target.value)}
-                  className="flex-1 h-9 text-sm"
-                  data-ocid="admin.input"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSendMail();
-                  }}
-                />
-                <Button
-                  size="sm"
-                  disabled={!mailAddress}
-                  className="gap-1.5 text-white flex-shrink-0"
-                  style={{ background: "oklch(0.52 0.18 264)" }}
-                  onClick={handleSendMail}
-                  data-ocid="admin.submit_button"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  Send
-                </Button>
-              </div>
-            )}
-          </DialogHeader>
-
-          {/* Scrollable table */}
-          <div className="overflow-auto flex-1">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50 sticky top-0">
-                  <TableHead className="font-bold text-foreground w-10">
-                    #
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground">
-                    Name
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground">
-                    Email
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground">
-                    Phone
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground whitespace-nowrap">
-                    Monthly Revenue (₹)
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground whitespace-nowrap">
-                    Staff Hours (hrs)
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground whitespace-nowrap">
-                    Hourly Wage (₹)
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground whitespace-nowrap">
-                    Lost Leads
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground whitespace-nowrap">
-                    Avg Order Value (₹)
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground whitespace-nowrap">
-                    Total Monthly Gain (₹/mo)
-                  </TableHead>
-                  <TableHead className="font-bold text-foreground whitespace-nowrap">
-                    Date &amp; Time
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {roiLeads?.map((lead, i) => (
-                  <TableRow
-                    key={String(lead.id)}
-                    data-ocid={`admin.row.${i + 1}`}
-                  >
-                    <TableCell className="text-muted-foreground text-xs">
-                      {i + 1}
-                    </TableCell>
-                    <TableCell className="font-semibold text-foreground whitespace-nowrap">
-                      {lead.name}
-                    </TableCell>
-                    <TableCell>
-                      <a
-                        href={`mailto:${lead.email}`}
-                        className="flex items-center gap-1.5 text-sm hover:underline whitespace-nowrap"
-                        style={{ color: "oklch(0.52 0.18 264)" }}
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        {lead.email}
-                      </a>
-                    </TableCell>
-                    <TableCell className="text-sm text-foreground whitespace-nowrap">
-                      {lead.phone}
-                    </TableCell>
-                    <TableCell className="text-sm text-right">
-                      ₹{formatINR(lead.monthlyRevenue)}
-                    </TableCell>
-                    <TableCell className="text-sm text-right">
-                      {lead.staffHours}
-                    </TableCell>
-                    <TableCell className="text-sm text-right">
-                      ₹{formatINR(lead.hourlyWage)}
-                    </TableCell>
-                    <TableCell className="text-sm text-right">
-                      {lead.lostLeads}
-                    </TableCell>
-                    <TableCell className="text-sm text-right">
-                      ₹{formatINR(lead.avgOrderValue)}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className="font-bold text-sm"
-                        style={{ color: "oklch(0.42 0.2 264)" }}
-                      >
-                        ₹{formatINR(lead.totalMonthlyGain)}/mo
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {formatTimestamp(lead.timestamp)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <footer className="bg-white border-t border-border px-6 py-4 text-center text-xs text-muted-foreground">
         &copy; {currentYear} SysTrans. All rights reserved.
