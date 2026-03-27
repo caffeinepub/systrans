@@ -40,6 +40,7 @@ export default function AdminPanel() {
   const queryClient = useQueryClient();
   const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
   const [claimError, setClaimError] = useState<string | null>(null);
+  const isConnecting = isLoggedIn && (isFetching || !actor);
 
   // Check if user is admin
   const { data: isAdmin, isLoading: adminCheckLoading } = useQuery<boolean>({
@@ -197,14 +198,16 @@ export default function AdminPanel() {
               </p>
             )}
           </div>
-        ) : adminCheckLoading ? (
-          // CHECKING ADMIN STATUS
+        ) : isConnecting || adminCheckLoading ? (
+          // CONNECTING / CHECKING ADMIN STATUS
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <Loader2
               className="w-8 h-8 animate-spin"
               style={{ color: "oklch(0.52 0.18 264)" }}
             />
-            <p className="text-muted-foreground">Checking access...</p>
+            <p className="text-muted-foreground">
+              {isConnecting ? "Connecting to backend..." : "Checking access..."}
+            </p>
           </div>
         ) : !isAdmin ? (
           // NOT ADMIN -- offer to claim if first admin slot is open
@@ -230,7 +233,7 @@ export default function AdminPanel() {
                 setClaimError(null);
                 claimAdmin();
               }}
-              disabled={claimingAdmin}
+              disabled={claimingAdmin || !actor}
               className="bg-primary text-white hover:bg-primary/90 font-semibold px-8 h-11 gap-2"
               data-ocid="admin.primary_button"
             >
