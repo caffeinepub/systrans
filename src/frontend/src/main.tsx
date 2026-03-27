@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ReactDOM from "react-dom/client";
 import AdminPanel from "./AdminPanel";
 import App from "./App";
+import CareersPage from "./CareersPage";
 import { InternetIdentityProvider } from "./hooks/useInternetIdentity";
 import "./index.css";
 
@@ -17,14 +18,20 @@ declare global {
 
 const queryClient = new QueryClient();
 
-const isAdmin =
-  window.location.pathname === "/admin" ||
-  window.location.pathname.startsWith("/admin/");
+const path = window.location.pathname;
+let PageComponent: React.ComponentType;
+if (path === "/admin" || path.startsWith("/admin/")) {
+  PageComponent = AdminPanel;
+} else if (path === "/careers" || path.startsWith("/careers/")) {
+  PageComponent = CareersPage;
+} else {
+  PageComponent = App;
+}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <InternetIdentityProvider>
-      {isAdmin ? <AdminPanel /> : <App />}
+      <PageComponent />
     </InternetIdentityProvider>
   </QueryClientProvider>,
 );

@@ -18,6 +18,7 @@ import {
   Loader2,
   LogOut,
   Mail,
+  RefreshCw,
   ShieldCheck,
   TrendingUp,
 } from "lucide-react";
@@ -36,11 +37,20 @@ function formatINR(value: number): string {
 export default function AdminPanel() {
   const { identity, login, clear, isLoggingIn, isInitializing } =
     useInternetIdentity();
-  const { actor, isFetching } = useActor();
+  const {
+    actor,
+    isFetching,
+    error: actorError,
+    refetch: retryActor,
+  } = useActor();
   const queryClient = useQueryClient();
   const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
   const [claimError, setClaimError] = useState<string | null>(null);
-  const isConnecting = isLoggedIn && (isFetching || !actor);
+
+  // Only show connecting spinner while fetching, show error if failed
+  const isConnecting = isLoggedIn && isFetching && !actor;
+  const hasConnectionError =
+    isLoggedIn && !isFetching && !actor && !!actorError;
 
   // Check if user is admin
   const { data: isAdmin, isLoading: adminCheckLoading } = useQuery<boolean>({
@@ -197,6 +207,39 @@ export default function AdminPanel() {
                 Connecting...
               </p>
             )}
+          </div>
+        ) : hasConnectionError ? (
+          // CONNECTION FAILED -- show error + retry
+          <div
+            className="flex flex-col items-center justify-center min-h-[60vh] gap-6"
+            data-ocid="admin.error_state"
+          >
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-2 bg-red-50">
+              <RefreshCw className="w-8 h-8 text-red-500" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">
+              Failed to Connect
+            </h1>
+            <p className="text-muted-foreground text-center max-w-sm">
+              Could not connect to the backend. This can happen on first load --
+              please try again.
+            </p>
+            <Button
+              onClick={() => retryActor()}
+              className="bg-primary text-white hover:bg-primary/90 font-semibold px-8 h-11 gap-2"
+              data-ocid="admin.primary_button"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry Connection
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clear}
+              className="gap-2"
+            >
+              <LogOut className="w-4 h-4" /> Logout
+            </Button>
           </div>
         ) : isConnecting || adminCheckLoading ? (
           // CONNECTING / CHECKING ADMIN STATUS

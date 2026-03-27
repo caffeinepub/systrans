@@ -6,6 +6,8 @@ import { getSecretParameter } from "../utils/urlParams";
 import { useInternetIdentity } from "./useInternetIdentity";
 
 const ACTOR_QUERY_KEY = "actor";
+const ACTOR_TIMEOUT_MS = 15000;
+
 export function useActor() {
   const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
@@ -14,25 +16,34 @@ export function useActor() {
     queryFn: async () => {
       const isAuthenticated = !!identity;
 
-      if (!isAuthenticated) {
-        // Return anonymous actor if not authenticated
-        return await createActorWithConfig();
-      }
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(new Error("Backend connection timed out after 15 seconds")),
+          ACTOR_TIMEOUT_MS,
+        ),
+      );
 
-      const actorOptions = {
-        agentOptions: {
-          identity,
-        },
-      };
+      const actorPromise = (async () => {
+        if (!isAuthenticated) {
+          return await createActorWithConfig();
+        }
+        const actorOptions = {
+          agentOptions: {
+            identity,
+          },
+        };
+        const actor = await createActorWithConfig(actorOptions);
+        const adminToken = getSecretParameter("caffeineAdminToken") || "";
+        await actor._initializeAccessControlWithSecret(adminToken);
+        return actor;
+      })();
 
-      const actor = await createActorWithConfig(actorOptions);
-      const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      await actor._initializeAccessControlWithSecret(adminToken);
-      return actor;
+      return Promise.race([actorPromise, timeoutPromise]);
     },
-    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
-    // This will cause the actor to be recreated when the identity changes
+    retry: 2,
+    retryDelay: 2000,
     enabled: true,
   });
 
@@ -55,5 +66,7 @@ export function useActor() {
   return {
     actor: actorQuery.data || null,
     isFetching: actorQuery.isFetching,
+    error: actorQuery.error,
+    refetch: actorQuery.refetch,
   };
 }

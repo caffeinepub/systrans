@@ -38,6 +38,8 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import developerImg from "/assets/uploads/1774532258715-019d2a68-771f-7280-997b-4847283e05f7-1.png";
+import teamImg from "/assets/uploads/screenshot_20260326-205515-019d2ac0-43a8-71ed-b141-b11046049400-1.png";
 
 const NAV_LINKS = [
   { label: "Home", href: "#home" },
@@ -47,6 +49,7 @@ const NAV_LINKS = [
   { label: "FAQ", href: "#faq" },
   { label: "ROI Calculator", href: "#roi-calculator" },
   { label: "Contact", href: "#contact" },
+  { label: "Careers", href: "/careers" },
 ];
 
 const SERVICES = [
@@ -450,7 +453,7 @@ export default function App() {
                 }}
               />
               <img
-                src="/assets/generated/developer-hero.dim_500x400.jpg"
+                src={developerImg}
                 alt="Developer at monitors"
                 className="relative z-10 w-full rounded-2xl shadow-xl object-cover"
               />
@@ -927,7 +930,7 @@ export default function App() {
               transition={{ duration: 0.6 }}
             >
               <img
-                src="/assets/generated/team-photo.dim_600x400.jpg"
+                src={teamImg}
                 alt="Our team"
                 className="w-full rounded-2xl shadow-card object-cover"
               />

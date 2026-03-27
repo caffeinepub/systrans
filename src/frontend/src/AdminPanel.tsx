@@ -3,6 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -16,17 +23,26 @@ import { useActor } from "@/hooks/useActor";
 import { useInternetIdentity } from "@/hooks/useInternetIdentity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Briefcase,
   Cpu,
+  Download,
   FileText,
   Inbox,
   Loader2,
   LogOut,
   Mail,
   ShieldCheck,
+  Trash2,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
-import type { ContactSubmission, ROILead } from "./backend.d";
+import type {
+  ContactSubmission,
+  JobApplication,
+  JobPosting,
+  ROILead,
+} from "./backend.d";
 
 const PRIMARY = "oklch(0.52 0.18 264)";
 const PRIMARY_LIGHT = "oklch(0.95 0.04 264)";
@@ -102,13 +118,20 @@ function applyTemplate(
 export default function AdminPanel() {
   const { identity, login, clear, isLoggingIn, isInitializing } =
     useInternetIdentity();
-  const { actor, isFetching } = useActor();
-  const actorError = false;
-  const retryActor = () => window.location.reload();
+  const {
+    actor,
+    isFetching,
+    isError: actorIsError,
+    retry: retryActor,
+  } = useActor();
   const queryClient = useQueryClient();
   const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
   const [claimError, setClaimError] = useState<string | null>(null);
-  const isConnecting = isLoggedIn && (isFetching || !actor) && !actorError;
+
+  // isConnecting: logged in, still fetching actor, no error yet
+  const isConnecting = isLoggedIn && isFetching && !actorIsError;
+  // actorReady: logged in, actor loaded, no error
+  const actorReady = isLoggedIn && !!actor && !isFetching && !actorIsError;
 
   // Mail template state
   const [templateSubject, setTemplateSubject] = useState(
@@ -144,7 +167,7 @@ export default function AdminPanel() {
         return false;
       }
     },
-    enabled: !!actor && !isFetching && isLoggedIn,
+    enabled: actorReady,
   });
 
   const { mutate: claimAdmin, isPending: claimingAdmin } = useMutation({
@@ -183,7 +206,7 @@ export default function AdminPanel() {
       if (!actor) return [];
       return actor.getContacts();
     },
-    enabled: !!actor && !isFetching && isLoggedIn && !!isAdmin,
+    enabled: actorReady && !!isAdmin,
   });
 
   const {
@@ -196,7 +219,72 @@ export default function AdminPanel() {
       if (!actor) return [];
       return actor.getROILeads();
     },
-    enabled: !!actor && !isFetching && isLoggedIn && !!isAdmin,
+    enabled: actorReady && !!isAdmin,
+  });
+
+  // Job form state
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobDept, setJobDept] = useState("");
+  const [jobLocation, setJobLocation] = useState("");
+  const [jobType, setJobType] = useState("");
+  const [jobSalary, setJobSalary] = useState("");
+  const [jobDesc, setJobDesc] = useState("");
+
+  const { data: allJobPostings, isLoading: jobPostingsLoading } = useQuery<
+    JobPosting[]
+  >({
+    queryKey: ["allJobPostings"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getAllJobPostings();
+    },
+    enabled: actorReady && !!isAdmin,
+  });
+
+  const { data: jobApplications, isLoading: jobApplicationsLoading } = useQuery<
+    JobApplication[]
+  >({
+    queryKey: ["jobApplications"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getJobApplications();
+    },
+    enabled: actorReady && !!isAdmin,
+  });
+
+  const { mutate: createJob, isPending: creatingJob } = useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Not connected");
+      await (actor as any).createJobPosting(
+        jobTitle,
+        jobDesc,
+        jobLocation,
+        jobType,
+        jobSalary,
+        jobDept,
+      );
+    },
+    onSuccess: () => {
+      setJobTitle("");
+      setJobDept("");
+      setJobLocation("");
+      setJobType("");
+      setJobSalary("");
+      setJobDesc("");
+      queryClient.invalidateQueries({ queryKey: ["allJobPostings"] });
+      queryClient.invalidateQueries({ queryKey: ["jobPostings"] });
+    },
+  });
+
+  const { mutate: deleteJob, isPending: deletingJob } = useMutation({
+    mutationFn: async (jobId: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      await (actor as any).deleteJobPosting(jobId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allJobPostings"] });
+      queryClient.invalidateQueries({ queryKey: ["jobPostings"] });
+    },
   });
 
   const currentYear = new Date().getFullYear();
@@ -271,7 +359,7 @@ export default function AdminPanel() {
               )}
             </Button>
           </div>
-        ) : actorError ? (
+        ) : actorIsError ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <div className="bg-red-50 border border-red-200 rounded-xl px-6 py-5 text-center max-w-sm">
               <p className="text-red-600 font-semibold text-sm">
@@ -298,7 +386,7 @@ export default function AdminPanel() {
               <LogOut className="w-4 h-4" /> Logout
             </Button>
           </div>
-        ) : isConnecting || adminCheckLoading ? (
+        ) : isConnecting || (actorReady && adminCheckLoading) ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <Loader2
               className="w-8 h-8 animate-spin"
@@ -411,6 +499,22 @@ export default function AdminPanel() {
                 >
                   <FileText className="w-4 h-4" />
                   Mail Templates
+                </TabsTrigger>
+                <TabsTrigger
+                  value="job-postings"
+                  className="gap-2"
+                  data-ocid="admin.tab"
+                >
+                  <Briefcase className="w-4 h-4" />
+                  Job Postings
+                </TabsTrigger>
+                <TabsTrigger
+                  value="applications"
+                  className="gap-2"
+                  data-ocid="admin.tab"
+                >
+                  <Users className="w-4 h-4" />
+                  Applications
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -771,6 +875,291 @@ export default function AdminPanel() {
                     </code>
                   ))}
                 </div>
+              </div>
+            </TabsContent>
+
+            {/* JOB POSTINGS TAB */}
+            <TabsContent value="job-postings" className="space-y-6">
+              {/* Add Job Form */}
+              <div className="bg-white rounded-2xl border border-border shadow-sm p-6 space-y-5">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">
+                    Add New Job Posting
+                  </h2>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Create a new position to display on the Careers page.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="job-title" className="font-semibold">
+                      Job Title
+                    </Label>
+                    <Input
+                      id="job-title"
+                      value={jobTitle}
+                      onChange={(e) => setJobTitle(e.target.value)}
+                      placeholder="e.g. Full Stack Developer"
+                      data-ocid="admin.input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="job-dept" className="font-semibold">
+                      Department
+                    </Label>
+                    <Input
+                      id="job-dept"
+                      value={jobDept}
+                      onChange={(e) => setJobDept(e.target.value)}
+                      placeholder="e.g. Engineering"
+                      data-ocid="admin.input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="job-location" className="font-semibold">
+                      Location
+                    </Label>
+                    <Input
+                      id="job-location"
+                      value={jobLocation}
+                      onChange={(e) => setJobLocation(e.target.value)}
+                      placeholder="e.g. Puducherry / Remote"
+                      data-ocid="admin.input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Job Type</Label>
+                    <Select value={jobType} onValueChange={setJobType}>
+                      <SelectTrigger data-ocid="admin.select">
+                        <SelectValue placeholder="Select job type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Full-time">Full-time</SelectItem>
+                        <SelectItem value="Part-time">Part-time</SelectItem>
+                        <SelectItem value="Remote">Remote</SelectItem>
+                        <SelectItem value="Contract">Contract</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="job-salary" className="font-semibold">
+                      Salary Range
+                    </Label>
+                    <Input
+                      id="job-salary"
+                      value={jobSalary}
+                      onChange={(e) => setJobSalary(e.target.value)}
+                      placeholder="e.g. 5–10 LPA"
+                      data-ocid="admin.input"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="job-desc" className="font-semibold">
+                      Description
+                    </Label>
+                    <Textarea
+                      id="job-desc"
+                      value={jobDesc}
+                      onChange={(e) => setJobDesc(e.target.value)}
+                      placeholder="Describe the role, responsibilities, and requirements..."
+                      rows={5}
+                      data-ocid="admin.textarea"
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={() => createJob()}
+                  disabled={
+                    creatingJob ||
+                    !jobTitle ||
+                    !jobDept ||
+                    !jobLocation ||
+                    !jobType ||
+                    !jobSalary ||
+                    !jobDesc
+                  }
+                  className="text-white font-semibold gap-2"
+                  style={{ background: PRIMARY }}
+                  data-ocid="admin.submit_button"
+                >
+                  {creatingJob ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Briefcase className="w-4 h-4" /> Add Job Posting
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Job list */}
+              <div className="bg-white rounded-2xl border border-border shadow-sm p-6 space-y-4">
+                <h2 className="text-lg font-bold text-foreground">
+                  Active Postings
+                </h2>
+                {jobPostingsLoading ? (
+                  <div
+                    className="flex items-center justify-center py-10"
+                    data-ocid="admin.loading_state"
+                  >
+                    <Loader2
+                      className="w-6 h-6 animate-spin"
+                      style={{ color: PRIMARY }}
+                    />
+                  </div>
+                ) : !allJobPostings || allJobPostings.length === 0 ? (
+                  <div
+                    className="text-center py-10 text-muted-foreground"
+                    data-ocid="admin.empty_state"
+                  >
+                    <Briefcase className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">
+                      No job postings yet. Add one above.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {allJobPostings.map((job, i) => (
+                      <div
+                        key={String(job.id)}
+                        className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border"
+                        data-ocid={`admin.item.${i + 1}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-foreground truncate">
+                              {job.title}
+                            </p>
+                            <Badge
+                              className="text-white text-xs"
+                              style={{ background: PRIMARY }}
+                            >
+                              {job.department}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {job.jobType}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            {job.location} · {job.salaryRange}
+                          </p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteJob(BigInt(job.id))}
+                          disabled={deletingJob}
+                          className="gap-1.5 shrink-0"
+                          data-ocid={`admin.delete_button.${i + 1}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* APPLICATIONS TAB */}
+            <TabsContent value="applications" className="space-y-4">
+              <div className="bg-white rounded-2xl border border-border shadow-sm p-6 space-y-4">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">
+                    Job Applications
+                  </h2>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    All submitted applications from the Careers page.
+                  </p>
+                </div>
+                {jobApplicationsLoading ? (
+                  <div
+                    className="flex items-center justify-center py-10"
+                    data-ocid="admin.loading_state"
+                  >
+                    <Loader2
+                      className="w-6 h-6 animate-spin"
+                      style={{ color: PRIMARY }}
+                    />
+                  </div>
+                ) : !jobApplications || jobApplications.length === 0 ? (
+                  <div
+                    className="text-center py-10 text-muted-foreground"
+                    data-ocid="admin.empty_state"
+                  >
+                    <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">No applications yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table data-ocid="admin.table">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>#</TableHead>
+                          <TableHead>Applicant Name</TableHead>
+                          <TableHead>Applied For</TableHead>
+                          <TableHead>Experience</TableHead>
+                          <TableHead>Current CTC</TableHead>
+                          <TableHead>Expected CTC</TableHead>
+                          <TableHead>Resume</TableHead>
+                          <TableHead>Date Applied</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {jobApplications.map((app, i) => (
+                          <TableRow
+                            key={String(app.id)}
+                            data-ocid={`admin.row.${i + 1}`}
+                          >
+                            <TableCell className="text-muted-foreground text-sm">
+                              {i + 1}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {app.applicantName}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {app.jobTitle}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {app.yearsExperience} yrs
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {app.currentCTC}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {app.expectedCTC}
+                            </TableCell>
+                            <TableCell>
+                              {app.resumeBlobId ? (
+                                <span
+                                  className="flex items-center gap-1 text-sm"
+                                  style={{ color: PRIMARY }}
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  {app.resumeFileName || "Resume"}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">
+                                  {app.resumeFileName || "—"}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(
+                                Number(app.appliedAt / BigInt(1_000_000)),
+                              ).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>

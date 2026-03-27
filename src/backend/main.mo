@@ -36,6 +36,31 @@ actor {
     timestamp : Int;
   };
 
+  type JobPosting = {
+    id : Nat;
+    title : Text;
+    description : Text;
+    location : Text;
+    jobType : Text;
+    salaryRange : Text;
+    department : Text;
+    isActive : Bool;
+    createdAt : Int;
+  };
+
+  type JobApplication = {
+    id : Nat;
+    jobId : Nat;
+    jobTitle : Text;
+    applicantName : Text;
+    yearsExperience : Float;
+    currentCTC : Text;
+    expectedCTC : Text;
+    resumeBlobId : Text;
+    resumeFileName : Text;
+    appliedAt : Int;
+  };
+
   public type UserProfile = {
     name : Text;
   };
@@ -47,6 +72,14 @@ actor {
   let roiLeadIds = List.empty<Nat>();
   var nextContactId = 0;
   var nextRoiLeadId = 0;
+
+  // Job state
+  let jobPostings = Map.empty<Nat, JobPosting>();
+  let jobPostingIds = List.empty<Nat>();
+  var nextJobId = 0;
+  let jobApplications = Map.empty<Nat, JobApplication>();
+  let jobApplicationIds = List.empty<Nat>();
+  var nextJobApplicationId = 0;
 
   // User profiles
   let userProfiles = Map.empty<Principal, UserProfile>();
@@ -209,5 +242,123 @@ actor {
     contactIds.clear();
     contactIds.addAll(newContactIds.values());
     true;
+  };
+
+  // --- JOB POSTINGS ---
+
+  // Create job posting - admin only
+  public shared ({ caller }) func createJobPosting(
+    title : Text,
+    description : Text,
+    location : Text,
+    jobType : Text,
+    salaryRange : Text,
+    department : Text,
+  ) : async Nat {
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+      Runtime.trap("Unauthorized: Only admins can create job postings");
+    };
+    let jobId = nextJobId;
+    nextJobId += 1;
+    let posting : JobPosting = {
+      id = jobId;
+      title;
+      description;
+      location;
+      jobType;
+      salaryRange;
+      department;
+      isActive = true;
+      createdAt = Time.now();
+    };
+    jobPostings.add(jobId, posting);
+    jobPostingIds.add(jobId);
+    jobId;
+  };
+
+  // Delete job posting - admin only
+  public shared ({ caller }) func deleteJobPosting(id : Nat) : async Bool {
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+      Runtime.trap("Unauthorized: Only admins can delete job postings");
+    };
+    if (not jobPostings.containsKey(id)) {
+      return false;
+    };
+    jobPostings.remove(id);
+    let newIds = jobPostingIds.filter(func(x) { x != id });
+    jobPostingIds.clear();
+    jobPostingIds.addAll(newIds.values());
+    true;
+  };
+
+  // Get active job postings - public
+  public query func getJobPostings() : async [JobPosting] {
+    jobPostingIds.values().map(func(id) {
+      switch (jobPostings.get(id)) {
+        case (?p) { p };
+        case (null) { Runtime.trap("Job posting not found") };
+      };
+    }).filter(func(p) { p.isActive }).toArray();
+  };
+
+  // Get all job postings (incl inactive) - admin only
+  public query ({ caller }) func getAllJobPostings() : async [JobPosting] {
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+      Runtime.trap("Unauthorized: Only admins can view all job postings");
+    };
+    jobPostingIds.values().map(func(id) {
+      switch (jobPostings.get(id)) {
+        case (?p) { p };
+        case (null) { Runtime.trap("Job posting not found") };
+      };
+    }).toArray();
+  };
+
+  // --- JOB APPLICATIONS ---
+
+  // Submit job application - public
+  public shared ({ caller }) func submitJobApplication(
+    jobId : Nat,
+    applicantName : Text,
+    yearsExperience : Float,
+    currentCTC : Text,
+    expectedCTC : Text,
+    resumeBlobId : Text,
+    resumeFileName : Text,
+  ) : async Nat {
+    let jobTitle = switch (jobPostings.get(jobId)) {
+      case (?p) { p.title };
+      case (null) { "Unknown Position" };
+    };
+    let appId = nextJobApplicationId;
+    nextJobApplicationId += 1;
+    let app : JobApplication = {
+      id = appId;
+      jobId;
+      jobTitle;
+      applicantName;
+      yearsExperience;
+      currentCTC;
+      expectedCTC;
+      resumeBlobId;
+      resumeFileName;
+      appliedAt = Time.now();
+    };
+    jobApplications.add(appId, app);
+    jobApplicationIds.add(appId);
+    appId;
+  };
+
+  // Get all job applications - admin only
+  public query ({ caller }) func getJobApplications() : async [JobApplication] {
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+      Runtime.trap("Unauthorized: Only admins can view job applications");
+    };
+    jobApplicationIds.values().map(func(id) {
+      switch (jobApplications.get(id)) {
+        case (?a) { a };
+        case (null) { Runtime.trap("Job application not found") };
+      };
+    }).toArray();
   };
 };
