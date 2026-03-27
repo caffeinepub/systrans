@@ -1,7 +1,14 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useActor } from "@/hooks/useActor";
 import {
   ArrowRight,
   Award,
@@ -15,6 +22,7 @@ import {
   Globe,
   Layers,
   Linkedin,
+  Loader2,
   Lock,
   Mail,
   MapPin,
@@ -23,6 +31,7 @@ import {
   Settings,
   Shield,
   Star,
+  TrendingUp,
   Twitter,
   Users,
   X,
@@ -83,7 +92,7 @@ const VALUES = [
 ];
 
 const PARTNERS = [
-  { name: "TechCorp", icon: Cpu },
+  { name: "TechCorp", icon: Database },
   { name: "DataSystems", icon: Database },
   { name: "SecureNet", icon: Lock },
   { name: "CloudBase", icon: Cloud },
@@ -110,9 +119,9 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: "50+", label: "Clients Served" },
+  { value: "10+", label: "Clients Served" },
   { value: "98%", label: "Satisfaction Rate" },
-  { value: "10+", label: "Years Experience" },
+  { value: "5+", label: "Years Experience" },
 ];
 
 const FAQS = [
@@ -131,7 +140,7 @@ const FAQS = [
   {
     question: "How long does the entire process take?",
     answer:
-      "A standard digital transformation (Web + Basic App) typically takes 4 to 6 weeks.\n\nWeek 1–2: Design and Approval.\nWeek 3–4: Development and Testing.\nWeek 5–6: Launch and Staff Training.",
+      "A standard digital transformation (Web + Basic App) typically takes 4 to 6 weeks.\n\nWeek 1-2: Design and Approval.\nWeek 3-4: Development and Testing.\nWeek 5-6: Launch and Staff Training.",
   },
   {
     question: 'Will my business be "down" while you are building this?',
@@ -145,7 +154,40 @@ const FAQS = [
   },
 ];
 
+function SysTransLogo({
+  size = "md",
+  dark = false,
+}: { size?: "sm" | "md" | "lg"; dark?: boolean }) {
+  const boxSize =
+    size === "lg" ? "w-12 h-12" : size === "sm" ? "w-8 h-8" : "w-10 h-10";
+  const iconSize =
+    size === "lg" ? "w-7 h-7" : size === "sm" ? "w-4 h-4" : "w-6 h-6";
+  const textSize =
+    size === "lg" ? "text-2xl" : size === "sm" ? "text-base" : "text-xl";
+  return (
+    <div className="flex items-center gap-2.5">
+      <div
+        className={`${boxSize} rounded-xl flex items-center justify-center flex-shrink-0`}
+        style={{ background: "oklch(0.52 0.18 264)" }}
+      >
+        <Cpu className={`${iconSize} text-white`} />
+      </div>
+      <span
+        className={`font-bold ${textSize} ${dark ? "text-white" : ""}`}
+        style={dark ? {} : { color: "oklch(0.22 0.04 264)" }}
+      >
+        SysTrans
+      </span>
+    </div>
+  );
+}
+
+function formatINR(value: number): string {
+  return value.toLocaleString("en-IN");
+}
+
 export default function App() {
+  const { actor, isFetching } = useActor();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -153,15 +195,98 @@ export default function App() {
     message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  // ROI Calculator state
+  const [roi, setRoi] = useState({
+    monthlyRevenue: "",
+    staffHours: "",
+    lostLeads: "",
+    hourlyWage: "",
+    avgOrderValue: "",
+  });
+  const [roiDialogOpen, setRoiDialogOpen] = useState(false);
+  const [roiLead, setRoiLead] = useState({ name: "", email: "", phone: "" });
+  const [roiSubmitting, setRoiSubmitting] = useState(false);
+  const [roiSubmitted, setRoiSubmitted] = useState(false);
+  const [roiSubmitError, setRoiSubmitError] = useState<string | null>(null);
+
+  const roiH = Number.parseFloat(roi.staffHours) || 0;
+  const roiL = Number.parseFloat(roi.lostLeads) || 0;
+  const roiW = Number.parseFloat(roi.hourlyWage) || 0;
+  const roiA = Number.parseFloat(roi.avgOrderValue) || 0;
+  const roiR = Number.parseFloat(roi.monthlyRevenue) || 0;
+  const timeRecovery = roiH * roiW;
+  const revenueRecovery = roiL * roiA;
+  const totalGain = timeRecovery + revenueRecovery;
+  const hasResults = roiH > 0 || roiL > 0;
+
+  async function handleROILeadSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: "", email: "", message: "" });
-    }, 3000);
+    setRoiSubmitError(null);
+    setRoiSubmitting(true);
+    try {
+      if (!actor || isFetching) {
+        setRoiSubmitError("Please wait a moment and try again.");
+        return;
+      }
+      await actor.submitROILead(
+        roiLead.name,
+        roiLead.email,
+        roiLead.phone,
+        roiR,
+        roiH,
+        roiL,
+        roiW,
+        roiA,
+        totalGain,
+      );
+      setRoiSubmitted(true);
+    } catch {
+      setRoiSubmitError("Failed to submit. Please try again.");
+    } finally {
+      setRoiSubmitting(false);
+    }
+  }
+
+  function handleROIDialogClose(open: boolean) {
+    if (!open) {
+      setRoiDialogOpen(false);
+      if (roiSubmitted) {
+        setRoiSubmitted(false);
+        setRoiLead({ name: "", email: "", phone: "" });
+      }
+    } else {
+      setRoiDialogOpen(true);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      if (!actor || isFetching) {
+        setSubmitError("Please wait a moment and try again.");
+        return;
+      }
+      await actor.submitContact(
+        formData.name,
+        formData.email,
+        formData.message,
+      );
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setFormData({ name: "", email: "", message: "" });
+      }, 4000);
+    } catch {
+      setSubmitError("Failed to send message. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const currentYear = new Date().getFullYear();
@@ -170,18 +295,9 @@ export default function App() {
     <div className="min-h-screen bg-background font-sans">
       {/* HEADER */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-border shadow-xs">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <a
-            href="#home"
-            className="flex items-center gap-2"
-            data-ocid="nav.link"
-          >
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-              <Cpu className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-extrabold text-foreground text-lg tracking-tight">
-              SysTrans
-            </span>
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+          <a href="#home" className="flex items-center" data-ocid="nav.link">
+            <SysTransLogo size="md" />
           </a>
 
           <nav className="hidden md:flex items-center gap-7">
@@ -273,7 +389,7 @@ export default function App() {
               transition={{ duration: 0.6 }}
             >
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent text-accent-foreground text-xs font-semibold mb-5">
-                <Star className="w-3.5 h-3.5" /> Trusted by 50+ Companies
+                <Star className="w-3.5 h-3.5" /> Trusted by 10+ Companies
               </span>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground leading-tight mb-5">
                 Smart IT Solutions for{" "}
@@ -285,9 +401,10 @@ export default function App() {
                 </span>
               </h1>
               <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-8 max-w-md">
-                SysTrans delivers cloud infrastructure, managed IT,
-                cybersecurity, and custom software — all under one roof to keep
-                your business secure and ahead of the curve.
+                At SysTrans, we specialize in &apos;System Transformation.&apos;
+                We take your traditional business systems and migrate them into
+                high-performance websites and mobile apps. We don&apos;t just
+                build software; we transform how you serve your customers.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button
@@ -338,6 +455,419 @@ export default function App() {
               />
             </motion.div>
           </div>
+        </section>
+
+        {/* ROI CALCULATOR SECTION */}
+        <section
+          id="roi-calculator"
+          className="py-20 px-6"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.52 0.18 264), oklch(0.42 0.2 264))",
+          }}
+        >
+          <div className="max-w-6xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-10"
+            >
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold mb-4">
+                <TrendingUp className="w-3.5 h-3.5" /> Live ROI Calculator
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                Calculate Your ROI
+              </h2>
+              <p className="text-white/80 max-w-xl mx-auto">
+                See exactly how much SysTrans can save your business every
+                month.
+              </p>
+            </motion.div>
+
+            <div className="grid lg:grid-cols-2 gap-8 items-start">
+              {/* Inputs card */}
+              <motion.div
+                initial={{ opacity: 0, x: -24 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.55 }}
+                className="bg-white rounded-2xl p-8 shadow-xl"
+              >
+                <h3 className="font-bold text-foreground text-lg mb-6">
+                  Enter Your Business Numbers
+                </h3>
+                <div className="space-y-5">
+                  <div>
+                    <Label
+                      htmlFor="roi-revenue"
+                      className="text-foreground font-semibold text-sm mb-1.5 block"
+                    >
+                      Monthly Revenue (₹)
+                    </Label>
+                    <Input
+                      id="roi-revenue"
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 500000"
+                      value={roi.monthlyRevenue}
+                      onChange={(e) =>
+                        setRoi((p) => ({
+                          ...p,
+                          monthlyRevenue: e.target.value,
+                        }))
+                      }
+                      className="bg-white border-border"
+                      data-ocid="roi.input"
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="roi-hours"
+                      className="text-foreground font-semibold text-sm mb-1.5 block"
+                    >
+                      Staff Hours on Manual Tasks / Month
+                    </Label>
+                    <Input
+                      id="roi-hours"
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 80"
+                      value={roi.staffHours}
+                      onChange={(e) =>
+                        setRoi((p) => ({ ...p, staffHours: e.target.value }))
+                      }
+                      className="bg-white border-border"
+                      data-ocid="roi.input"
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="roi-leads"
+                      className="text-foreground font-semibold text-sm mb-1.5 block"
+                    >
+                      Lost / Abandoned Leads / Month
+                    </Label>
+                    <Input
+                      id="roi-leads"
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 20"
+                      value={roi.lostLeads}
+                      onChange={(e) =>
+                        setRoi((p) => ({ ...p, lostLeads: e.target.value }))
+                      }
+                      className="bg-white border-border"
+                      data-ocid="roi.input"
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="roi-wage"
+                      className="text-foreground font-semibold text-sm mb-1.5 block"
+                    >
+                      Avg. Hourly Wage (₹)
+                    </Label>
+                    <Input
+                      id="roi-wage"
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 200"
+                      value={roi.hourlyWage}
+                      onChange={(e) =>
+                        setRoi((p) => ({ ...p, hourlyWage: e.target.value }))
+                      }
+                      className="bg-white border-border"
+                      data-ocid="roi.input"
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="roi-aov"
+                      className="text-foreground font-semibold text-sm mb-1.5 block"
+                    >
+                      Average Order Value (₹)
+                    </Label>
+                    <Input
+                      id="roi-aov"
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 5000"
+                      value={roi.avgOrderValue}
+                      onChange={(e) =>
+                        setRoi((p) => ({ ...p, avgOrderValue: e.target.value }))
+                      }
+                      className="bg-white border-border"
+                      data-ocid="roi.input"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Results card */}
+              <motion.div
+                initial={{ opacity: 0, x: 24 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.55, delay: 0.1 }}
+                className="flex flex-col gap-5"
+              >
+                <div className="bg-white/15 backdrop-blur rounded-2xl p-6 border border-white/20">
+                  <h3 className="font-bold text-white text-sm uppercase tracking-wide mb-5">
+                    Your Monthly Recovery Estimate
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white/70 text-xs font-medium uppercase tracking-wide">
+                          Time Recovery
+                        </p>
+                        <p className="text-white/60 text-xs mt-0.5">
+                          {roiH > 0 && roiW > 0
+                            ? `${roiH} hrs × ₹${roiW}/hr`
+                            : "H × Hourly Wage"}
+                        </p>
+                      </div>
+                      <span className="text-xl font-bold text-white">
+                        ₹{formatINR(timeRecovery)}
+                      </span>
+                    </div>
+                    <div className="border-t border-white/20" />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white/70 text-xs font-medium uppercase tracking-wide">
+                          Revenue Recovery
+                        </p>
+                        <p className="text-white/60 text-xs mt-0.5">
+                          {roiL > 0 && roiA > 0
+                            ? `${roiL} leads × ₹${roiA} AOV`
+                            : "L × Avg. Order Value"}
+                        </p>
+                      </div>
+                      <span className="text-xl font-bold text-white">
+                        ₹{formatINR(revenueRecovery)}
+                      </span>
+                    </div>
+                    <div className="border-t border-white/20" />
+                    <div
+                      className="rounded-xl p-4 flex items-center justify-between"
+                      style={{ background: "rgba(255,255,255,0.18)" }}
+                    >
+                      <div>
+                        <p className="text-white font-bold text-sm uppercase tracking-wide">
+                          Total Monthly Gain
+                        </p>
+                        <p className="text-white/70 text-xs mt-0.5">
+                          Time Recovery + Revenue Recovery
+                        </p>
+                      </div>
+                      <span className="text-3xl font-extrabold text-white">
+                        ₹{formatINR(totalGain)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {hasResults && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white/10 border border-white/20 rounded-xl px-5 py-4 text-center"
+                  >
+                    <p className="text-white/80 text-sm">
+                      You could be losing{" "}
+                      <span className="font-bold text-white">
+                        ₹{formatINR(totalGain)}/month
+                      </span>{" "}
+                      right now. Let SysTrans fix that.
+                    </p>
+                  </motion.div>
+                )}
+
+                <Button
+                  size="lg"
+                  className="w-full font-bold h-12 text-base gap-2 shadow-lg"
+                  style={{
+                    background: "white",
+                    color: "oklch(0.42 0.2 264)",
+                  }}
+                  onClick={() => setRoiDialogOpen(true)}
+                  data-ocid="roi.open_modal_button"
+                >
+                  <TrendingUp className="w-5 h-5" />
+                  Get My Full Audit Report
+                </Button>
+                <p className="text-center text-white/60 text-xs">
+                  Free. No commitment. We&apos;ll send you a personalised
+                  analysis.
+                </p>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* ROI Lead Capture Dialog */}
+          <Dialog open={roiDialogOpen} onOpenChange={handleROIDialogClose}>
+            <DialogContent className="sm:max-w-md" data-ocid="roi.dialog">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold">
+                  Get Your Full Audit Report
+                </DialogTitle>
+              </DialogHeader>
+
+              {roiSubmitted ? (
+                <div
+                  className="flex flex-col items-center gap-4 py-8"
+                  data-ocid="roi.success_state"
+                >
+                  <div
+                    className="w-14 h-14 rounded-full flex items-center justify-center"
+                    style={{ background: "oklch(0.95 0.04 264)" }}
+                  >
+                    <CheckCircle2
+                      className="w-7 h-7"
+                      style={{ color: "oklch(0.52 0.18 264)" }}
+                    />
+                  </div>
+                  <h3 className="font-bold text-foreground text-lg">
+                    Request Submitted!
+                  </h3>
+                  <p className="text-muted-foreground text-center text-sm">
+                    Thank you! Our team will review your numbers and send a
+                    personalised audit report within 24 hours.
+                  </p>
+                  <Button
+                    className="bg-primary text-white hover:bg-primary/90 font-semibold mt-2"
+                    onClick={() => handleROIDialogClose(false)}
+                    data-ocid="roi.close_button"
+                  >
+                    Close
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleROILeadSubmit} className="space-y-4 py-2">
+                  <p className="text-sm text-muted-foreground">
+                    Leave your details and we&apos;ll send you a personalised
+                    ROI analysis based on your numbers.
+                  </p>
+
+                  {totalGain > 0 && (
+                    <div
+                      className="rounded-xl p-4 text-center"
+                      style={{ background: "oklch(0.95 0.04 264)" }}
+                    >
+                      <p
+                        className="text-xs font-semibold uppercase tracking-wide mb-1"
+                        style={{ color: "oklch(0.52 0.18 264)" }}
+                      >
+                        Your Estimated Monthly Gain
+                      </p>
+                      <p
+                        className="text-2xl font-extrabold"
+                        style={{ color: "oklch(0.42 0.2 264)" }}
+                      >
+                        ₹{formatINR(totalGain)}/month
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <Label
+                      htmlFor="lead-name"
+                      className="text-foreground font-semibold text-sm mb-1.5 block"
+                    >
+                      Full Name
+                    </Label>
+                    <Input
+                      id="lead-name"
+                      placeholder="Your name"
+                      value={roiLead.name}
+                      onChange={(e) =>
+                        setRoiLead((p) => ({ ...p, name: e.target.value }))
+                      }
+                      required
+                      data-ocid="roi.input"
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="lead-email"
+                      className="text-foreground font-semibold text-sm mb-1.5 block"
+                    >
+                      Email Address
+                    </Label>
+                    <Input
+                      id="lead-email"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={roiLead.email}
+                      onChange={(e) =>
+                        setRoiLead((p) => ({ ...p, email: e.target.value }))
+                      }
+                      required
+                      data-ocid="roi.input"
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="lead-phone"
+                      className="text-foreground font-semibold text-sm mb-1.5 block"
+                    >
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="lead-phone"
+                      type="tel"
+                      placeholder="+91 XXXXX XXXXX"
+                      value={roiLead.phone}
+                      onChange={(e) =>
+                        setRoiLead((p) => ({ ...p, phone: e.target.value }))
+                      }
+                      required
+                      data-ocid="roi.input"
+                    />
+                  </div>
+
+                  {roiSubmitError && (
+                    <p
+                      className="text-sm text-red-500"
+                      data-ocid="roi.error_state"
+                    >
+                      {roiSubmitError}
+                    </p>
+                  )}
+
+                  <div className="flex gap-3 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleROIDialogClose(false)}
+                      data-ocid="roi.cancel_button"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={roiSubmitting || isFetching || !actor}
+                      className="flex-1 bg-primary text-white hover:bg-primary/90 font-semibold gap-2"
+                      data-ocid="roi.submit_button"
+                    >
+                      {roiSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Send My Report"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </DialogContent>
+          </Dialog>
         </section>
 
         {/* SERVICES SECTION */}
@@ -513,7 +1043,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* WHY CHOOSE US — STATS */}
+        {/* WHY CHOOSE US - STATS */}
         <section
           className="py-20 px-6"
           style={{
@@ -655,7 +1185,7 @@ export default function App() {
                 Get in Touch
               </h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Ready to transform your IT infrastructure? Let's start a
+                Ready to transform your IT infrastructure? Let&apos;s start a
                 conversation.
               </p>
             </motion.div>
@@ -675,8 +1205,8 @@ export default function App() {
                       Message Sent!
                     </h3>
                     <p className="text-muted-foreground text-center">
-                      Thank you for reaching out. We'll get back to you within
-                      24 hours.
+                      Thank you for reaching out. We&apos;ll get back to you
+                      within 24 hours.
                     </p>
                   </div>
                 ) : (
@@ -743,12 +1273,33 @@ export default function App() {
                         data-ocid="contact.textarea"
                       />
                     </div>
+                    {submitError && (
+                      <p
+                        className="text-sm text-red-500"
+                        data-ocid="contact.error_state"
+                      >
+                        {submitError}
+                      </p>
+                    )}
                     <Button
                       type="submit"
-                      className="w-full bg-primary text-white hover:bg-primary/90 font-semibold h-11"
+                      disabled={submitting || isFetching || !actor}
+                      className="w-full bg-primary text-white hover:bg-primary/90 font-semibold h-11 gap-2"
                       data-ocid="contact.submit_button"
                     >
-                      Send Message
+                      {submitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : isFetching ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Send Message"
+                      )}
                     </Button>
                   </form>
                 )}
@@ -769,7 +1320,7 @@ export default function App() {
                     {
                       Icon: Mail,
                       label: "Email",
-                      value: "support@systrans.in",
+                      value: "systranssupport@gmail.com",
                     },
                     {
                       Icon: Globe,
@@ -826,11 +1377,8 @@ export default function App() {
         <div className="max-w-6xl mx-auto">
           <div className="grid sm:grid-cols-3 gap-10 mb-10">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-                  <Cpu className="w-5 h-5 text-white" />
-                </div>
-                <span className="font-extrabold text-white">SysTrans</span>
+              <div className="mb-4">
+                <SysTransLogo size="md" dark />
               </div>
               <p className="text-sm text-white/60 leading-relaxed">
                 Empowering businesses with innovative IT solutions since 2026.
@@ -882,15 +1430,7 @@ export default function App() {
           </div>
 
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-white/40">
-            <span>© {currentYear} SysTrans. All rights reserved.</span>
-            <a
-              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-white/70 transition-colors"
-            >
-              Built with ❤️ using caffeine.ai
-            </a>
+            <span>&copy; {currentYear} SysTrans. All rights reserved.</span>
           </div>
         </div>
       </footer>

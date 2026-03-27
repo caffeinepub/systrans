@@ -10,7 +10,50 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface _SERVICE {}
+export interface ContactSubmission {
+  'id' : bigint,
+  'name' : string,
+  'email' : string,
+  'message' : string,
+  'timestamp' : bigint,
+}
+export interface ROILead {
+  'id' : bigint,
+  'name' : string,
+  'hourlyWage' : number,
+  'email' : string,
+  'timestamp' : bigint,
+  'staffHours' : number,
+  'phone' : string,
+  'monthlyRevenue' : number,
+  'totalMonthlyGain' : number,
+  'lostLeads' : number,
+  'avgOrderValue' : number,
+}
+export interface UserProfile { 'name' : string }
+export type UserRole = { 'admin' : null } |
+  { 'user' : null } |
+  { 'guest' : null };
+export interface _SERVICE {
+  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addAdmin' : ActorMethod<[Principal], undefined>,
+  'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'deleteContactSubmission' : ActorMethod<[bigint], boolean>,
+  'getAllContactSubmissions' : ActorMethod<[], Array<ContactSubmission>>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'getContactSubmissionById' : ActorMethod<[bigint], [] | [ContactSubmission]>,
+  'getContacts' : ActorMethod<[], Array<ContactSubmission>>,
+  'getROILeads' : ActorMethod<[], Array<ROILead>>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'isCallerAdmin' : ActorMethod<[], boolean>,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'submitContact' : ActorMethod<[string, string, string], bigint>,
+  'submitROILead' : ActorMethod<
+    [string, string, string, number, number, number, number, number, number],
+    bigint
+  >,
+}
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
 export declare const idlFactory: IDL.InterfaceFactory;

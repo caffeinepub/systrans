@@ -8,10 +8,142 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const idlService = IDL.Service({});
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
+export const ContactSubmission = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'email' : IDL.Text,
+  'message' : IDL.Text,
+  'timestamp' : IDL.Int,
+});
+export const UserProfile = IDL.Record({ 'name' : IDL.Text });
+export const ROILead = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'hourlyWage' : IDL.Float64,
+  'email' : IDL.Text,
+  'timestamp' : IDL.Int,
+  'staffHours' : IDL.Float64,
+  'phone' : IDL.Text,
+  'monthlyRevenue' : IDL.Float64,
+  'totalMonthlyGain' : IDL.Float64,
+  'lostLeads' : IDL.Float64,
+  'avgOrderValue' : IDL.Float64,
+});
+
+export const idlService = IDL.Service({
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addAdmin' : IDL.Func([IDL.Principal], [], []),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'deleteContactSubmission' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+  'getAllContactSubmissions' : IDL.Func([], [IDL.Vec(ContactSubmission)], []),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'getContactSubmissionById' : IDL.Func(
+      [IDL.Nat],
+      [IDL.Opt(ContactSubmission)],
+      ['query'],
+    ),
+  'getContacts' : IDL.Func([], [IDL.Vec(ContactSubmission)], ['query']),
+  'getROILeads' : IDL.Func([], [IDL.Vec(ROILead)], ['query']),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'submitContact' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
+  'submitROILead' : IDL.Func(
+      [
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Float64,
+        IDL.Float64,
+        IDL.Float64,
+        IDL.Float64,
+        IDL.Float64,
+        IDL.Float64,
+      ],
+      [IDL.Nat],
+      [],
+    ),
+});
 
 export const idlInitArgs = [];
 
-export const idlFactory = ({ IDL }) => { return IDL.Service({}); };
+export const idlFactory = ({ IDL }) => {
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
+  const ContactSubmission = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'email' : IDL.Text,
+    'message' : IDL.Text,
+    'timestamp' : IDL.Int,
+  });
+  const UserProfile = IDL.Record({ 'name' : IDL.Text });
+  const ROILead = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'hourlyWage' : IDL.Float64,
+    'email' : IDL.Text,
+    'timestamp' : IDL.Int,
+    'staffHours' : IDL.Float64,
+    'phone' : IDL.Text,
+    'monthlyRevenue' : IDL.Float64,
+    'totalMonthlyGain' : IDL.Float64,
+    'lostLeads' : IDL.Float64,
+    'avgOrderValue' : IDL.Float64,
+  });
+  
+  return IDL.Service({
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addAdmin' : IDL.Func([IDL.Principal], [], []),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'deleteContactSubmission' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+    'getAllContactSubmissions' : IDL.Func([], [IDL.Vec(ContactSubmission)], []),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'getContactSubmissionById' : IDL.Func(
+        [IDL.Nat],
+        [IDL.Opt(ContactSubmission)],
+        ['query'],
+      ),
+    'getContacts' : IDL.Func([], [IDL.Vec(ContactSubmission)], ['query']),
+    'getROILeads' : IDL.Func([], [IDL.Vec(ROILead)], ['query']),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'submitContact' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
+    'submitROILead' : IDL.Func(
+        [
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Float64,
+          IDL.Float64,
+          IDL.Float64,
+          IDL.Float64,
+          IDL.Float64,
+          IDL.Float64,
+        ],
+        [IDL.Nat],
+        [],
+      ),
+  });
+};
 
 export const init = ({ IDL }) => { return []; };
