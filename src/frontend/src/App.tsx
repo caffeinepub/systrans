@@ -45,6 +45,7 @@ const NAV_LINKS = [
   { label: "About", href: "#about" },
   { label: "Portfolio", href: "#portfolio" },
   { label: "FAQ", href: "#faq" },
+  { label: "ROI Calculator", href: "#roi-calculator" },
   { label: "Contact", href: "#contact" },
 ];
 
