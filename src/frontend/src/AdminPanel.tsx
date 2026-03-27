@@ -444,7 +444,12 @@ function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
 export default function AdminPanel() {
   const { identity, login, clear, isLoggingIn, isInitializing } =
     useInternetIdentity();
-  const { actor, isFetching, error: actorError } = useActor();
+  const {
+    actor,
+    isFetching,
+    error: actorError,
+    refetch: retryActor,
+  } = useActor();
   const queryClient = useQueryClient();
   const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
   const [claimError, setClaimError] = useState<string | null>(null);
@@ -629,7 +634,7 @@ export default function AdminPanel() {
               </p>
             </div>
             <Button
-              onClick={() => window.location.reload()}
+              onClick={() => retryActor()}
               className="gap-2 text-white font-semibold"
               style={{ background: PRIMARY }}
               data-ocid="admin.primary_button"

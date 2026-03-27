@@ -6,17 +6,14 @@ import { getSecretParameter } from "../utils/urlParams";
 import { useInternetIdentity } from "./useInternetIdentity";
 
 const ACTOR_QUERY_KEY = "actor";
-const ACTOR_TIMEOUT_MS = 10_000;
+const ACTOR_TIMEOUT_MS = 15_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
       setTimeout(
-        () =>
-          reject(
-            new Error("Backend connection timed out. Please refresh the page."),
-          ),
+        () => reject(new Error("Backend connection timed out. Please retry.")),
         ms,
       ),
     ),
@@ -35,12 +32,7 @@ export function useActor() {
         return await withTimeout(createActorWithConfig(), ACTOR_TIMEOUT_MS);
       }
 
-      const actorOptions = {
-        agentOptions: {
-          identity,
-        },
-      };
-
+      const actorOptions = { agentOptions: { identity } };
       const actor = await withTimeout(
         createActorWithConfig(actorOptions),
         ACTOR_TIMEOUT_MS,
@@ -52,22 +44,20 @@ export function useActor() {
       );
       return actor;
     },
+    retry: 2,
+    retryDelay: 2000,
     staleTime: Number.POSITIVE_INFINITY,
     enabled: true,
-    retry: 1,
   });
 
+  // When the actor changes, invalidate dependent queries
   useEffect(() => {
     if (actorQuery.data) {
       queryClient.invalidateQueries({
-        predicate: (query) => {
-          return !query.queryKey.includes(ACTOR_QUERY_KEY);
-        },
+        predicate: (query) => !query.queryKey.includes(ACTOR_QUERY_KEY),
       });
       queryClient.refetchQueries({
-        predicate: (query) => {
-          return !query.queryKey.includes(ACTOR_QUERY_KEY);
-        },
+        predicate: (query) => !query.queryKey.includes(ACTOR_QUERY_KEY),
       });
     }
   }, [actorQuery.data, queryClient]);
@@ -76,5 +66,6 @@ export function useActor() {
     actor: actorQuery.data || null,
     isFetching: actorQuery.isFetching,
     error: actorQuery.error,
+    refetch: actorQuery.refetch,
   };
 }

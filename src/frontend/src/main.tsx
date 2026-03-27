@@ -17,14 +17,14 @@ declare global {
 
 const queryClient = new QueryClient();
 
-const isAdminRoute =
+const isAdmin =
   window.location.pathname === "/admin" ||
   window.location.pathname === "/admin/";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <InternetIdentityProvider>
-      {isAdminRoute ? <AdminPanel /> : <App />}
+      {isAdmin ? <AdminPanel /> : <App />}
     </InternetIdentityProvider>
   </QueryClientProvider>,
 );
